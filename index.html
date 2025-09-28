@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox Games Backdoor List</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #1a1a1a;
+            color: white;
+        }
+        .game-card { 
+            background: #2d2d2d; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+        }
+        .stats { 
+            margin-top: 20px; 
+            padding: 15px;
+            background: #2d2d2d;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Backdoor list</h1>
+    <div id="gamesList"></div>
+    <div class="stats">
+        <h3>Stats:</h3>
+        <p>Games: <span id="totalGames">0</span></p>
+        <p>Last update: <span id="lastUpdate">-</span></p>
+    </div>
+
+    <script>
+        // Хранилище данных в LocalStorage
+        let gamesData = JSON.parse(localStorage.getItem('robloxGames') || '[]');
+        
+        // Функция для добавления игры
+        function addGame(gameData) {
+            // Проверяем, есть ли уже такая игра
+            const existingGameIndex = gamesData.findIndex(game => game.placeId === gameData.placeId);
+            
+            if (existingGameIndex !== -1) {
+                // Обновляем существующую запись
+                gamesData[existingGameIndex] = {
+                    ...gamesData[existingGameIndex],
+                    ...gameData,
+                    lastSeen: new Date().toISOString(),
+                    seenCount: (gamesData[existingGameIndex].seenCount || 1) + 1
+                };
+            } else {
+                // Добавляем новую игру
+                gamesData.push({
+                    ...gameData,
+                    firstSeen: new Date().toISOString(),
+                    lastSeen: new Date().toISOString(),
+                    seenCount: 1
+                });
+            }
+            
+            // Сохраняем и обновляем интерфейс
+            saveData();
+            updateUI();
+        }
+        
+        // Функция для обработки входящих данных
+        function handleIncomingData() {
+            // Получаем данные из URL параметров (для GET запросов)
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameData = urlParams.get('data');
+            
+            if (gameData) {
+                try {
+                    const parsedData = JSON.parse(decodeURIComponent(gameData));
+                    addGame(parsedData);
+                    
+                    // Очищаем URL после обработки
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } catch (e) {
+                    console.error('Ошибка парсинга данных:', e);
+                }
+            }
+        }
+        
+        // Функция для сохранения данных
+        function saveData() {
+            localStorage.setItem('robloxGames', JSON.stringify(gamesData));
+        }
+        
+        // Функция для обновления интерфейса
+        function updateUI() {
+            const gamesList = document.getElementById('gamesList');
+            const totalGames = document.getElementById('totalGames');
+            const lastUpdate = document.getElementById('lastUpdate');
+            
+            gamesList.innerHTML = '';
+            totalGames.textContent = gamesData.length;
+            lastUpdate.textContent = new Date().toLocaleString();
+            
+            // Сортируем по дате последнего посещения
+            gamesData.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
+            
+            gamesData.forEach(game => {
+                const gameCard = document.createElement('div');
+                gameCard.className = 'game-card';
+                gameCard.innerHTML = `
+                    <h3>${game.name || 'Unavaliable'}</h3>
+                    <p><strong>Place ID:</strong> ${game.placeId}</p>
+                    <p><strong>Creator:</strong> ${game.creator || 'Unavaliable'}</p>
+                    <p><strong>Create date:</strong> ${new Date(game.firstSeen).toLocaleString()}</p>
+                    <p><strong>Last:</strong> ${new Date(game.lastSeen).toLocaleString()}</p>
+                    <p><strong>Visits:</strong> ${game.seenCount} times</p>
+                `;
+                gamesList.appendChild(gameCard);
+            });
+        }
+        
+        // API endpoint для приема данных (через URL)
+        function getAPIUrl() {
+            return window.location.href;
+        }
+        
+        // Инициализация
+        function init() {
+            handleIncomingData();
+            updateUI();
+            
+            // Показываем URL для API
+            console.log('API URL:', getAPIUrl());
+        }
+        
+        init();
+    </script>
+</body>
+</html>
