@@ -109,6 +109,16 @@
             margin-top: 10px;
             font-size: 0.8em;
             font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .status-online {
+            color: #00ff00;
+        }
+        
+        .status-offline {
+            color: #ff4444;
         }
     </style>
 </head>
@@ -117,6 +127,7 @@
         <div class="header">
             <h1>🎮 Backdoor Games Tracker</h1>
             <p>Отслеживание запусков бэкдора</p>
+            <p>Статус: <span id="status" class="status-online">✅ ONLINE</span></p>
         </div>
         
         <div class="stats">
@@ -150,39 +161,54 @@
         class BackdoorTracker {
             constructor() {
                 this.games = JSON.parse(localStorage.getItem('backdoorGames') || '[]');
+                this.requestCount = 0;
                 this.init();
             }
             
             init() {
                 this.log('🔧 Инициализация трекера...');
-                this.handleIncomingData();
+                this.setupMessageListener();
+                this.handleUrlData();
                 this.updateUI();
                 
-                // Проверяем новые данные каждую секунду
+                // Проверяем новые данные каждые 500ms
                 setInterval(() => {
-                    this.handleIncomingData();
+                    this.handleUrlData();
                     this.updateUI();
-                }, 1000);
+                }, 500);
                 
                 this.log('✅ Трекер готов к приему данных');
+                this.log('📡 Ожидание запросов от Roblox...');
             }
             
-            handleIncomingData() {
+            setupMessageListener() {
+                // Слушаем сообщения от iframe (для будущих улучшений)
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'gameData') {
+                        this.addGame(event.data.gameData);
+                    }
+                });
+            }
+            
+            handleUrlData() {
                 const urlParams = new URLSearchParams(window.location.search);
                 const dataParam = urlParams.get('data');
                 
-                if (dataParam) {
+                if (dataParam && dataParam.length > 0) {
+                    this.requestCount++;
+                    this.log(`📨 Запрос #${this.requestCount}: получены данные`);
+                    
                     try {
-                        this.log('📨 Получены данные из URL');
                         const gameData = JSON.parse(decodeURIComponent(dataParam));
                         this.addGame(gameData);
                         
-                        // Очищаем URL чтобы не дублировать запросы
+                        // Очищаем URL
                         window.history.replaceState({}, '', window.location.pathname);
                         
-                        this.log('✅ Данные успешно обработаны');
+                        this.log('✅ Данные успешно обработаны и сохранены');
                     } catch (e) {
-                        this.log('❌ Ошибка парсинга: ' + e.message);
+                        this.log('❌ Ошибка парсинга JSON: ' + e.message);
+                        this.log('📦 Полученные данные: ' + dataParam.substring(0, 100));
                     }
                 }
             }
@@ -216,14 +242,14 @@
                 }
                 
                 this.saveData();
+                this.updateUI();
             }
             
             saveData() {
                 try {
                     localStorage.setItem('backdoorGames', JSON.stringify(this.games));
-                    this.log('💾 Данные сохранены в localStorage');
                 } catch (e) {
-                    this.log('❌ Ошибка сохранения: ' + e.message);
+                    this.log('❌ Ошибка сохранения в localStorage: ' + e.message);
                 }
             }
             
@@ -234,6 +260,7 @@
                 const totalLaunches = document.getElementById('totalLaunches');
                 const uniqueGames = document.getElementById('uniqueGames');
                 const lastUpdate = document.getElementById('lastUpdate');
+                const status = document.getElementById('status');
                 
                 // Статистика
                 const launches = this.games.reduce((sum, game) => sum + (game.seenCount || 1), 0);
@@ -241,6 +268,9 @@
                 totalLaunches.textContent = launches;
                 uniqueGames.textContent = this.games.length;
                 lastUpdate.textContent = new Date().toLocaleString();
+                
+                // Обновляем статус
+                status.textContent = this.games.length > 0 ? '✅ ACTIVE' : '✅ ONLINE';
                 
                 // Список игр
                 if (this.games.length === 0) {
@@ -277,6 +307,12 @@
                     const timestamp = new Date().toLocaleTimeString();
                     logElement.innerHTML += `[${timestamp}] ${message}<br>`;
                     logElement.scrollTop = logElement.scrollHeight;
+                    
+                    // Ограничиваем лог 50 сообщениями
+                    const messages = logElement.innerHTML.split('<br>');
+                    if (messages.length > 50) {
+                        logElement.innerHTML = messages.slice(-30).join('<br>');
+                    }
                 }
                 console.log(message);
             }
